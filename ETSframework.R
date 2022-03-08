@@ -38,8 +38,6 @@ waSEStry <- function(N) {
   return(predictedvals)
 }
 
-#predictedvals = waSEStry(20)
-
 #SES in weighted average form
 waSESprevalence <- function(N) {
   prevalencecopy = data$prevalence
@@ -84,15 +82,34 @@ plotpredictions <- function(predictedvals){
   
 }
 
+#Check if new method works like the old, validated one
 plotpredictions(predictedvals)
 plotpredictions(predictedvals2)
 
-predictedvals[500]
-predictedvals2[500]
+#try forecast.ets function 
+sesmodel = ets(y=data$prevalence, model="ANN",use.initial.values = FALSE, opt.crit="mse")
 
-#perform SES using pre-existing library to check results later
-library(tidyverse)
-library(fpp2)  
-ses.prevalence <- ses(data$prevalence, alpha=.0952381, h=50)
-plot(ses.prevalence,ylim=c(-0.025, 0.20), main="SES Prevalence using pre-existing library", xlab="date", ylab="prevalence")
-summary(ses.prevalence)
+plot(sesmodel)
+summary(sesmodel)
+
+sesmodel = ets(y=data$prevalence, model="AMN",use.initial.values = FALSE, opt.crit="mse")
+
+#Try all additive components of ETS framework
+errortypes = c("A")
+trendtypes = c("N","A","M")
+seasonalitytypes = c("N","A","M")
+#Obtain vector with all ETS types as strings
+possiblecombinations = do.call(paste,c(expand.grid(errortypes,trendtypes,seasonalitytypes), list(sep='')))
+
+
+# Possible to do this?
+#apply(possiblecombinations, FUN = ets(data$prevalence, model = ))
+
+for (combination in possiblecombinations){
+  print(combination)
+  modellist = c()
+  model = ets(y=data$prevalence, model = combination, use.initial.values = FALSE, opt.crit="mse")
+  
+  modellist <- append(modellist, model)
+}
+

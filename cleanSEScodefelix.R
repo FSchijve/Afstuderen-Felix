@@ -33,48 +33,34 @@ componentSESprevalence2 <-function(a){
   
 }
 
-
-
 #plot the SES component form results
 plot(x=data$day,y=componentSESvals,type='l',ylim=c(-0.025, 0.20), main="SES prevalence using component form", xlab="date", ylab="prevalence")
 
-#SES in weighted average form
-waSESprevalence <- function(N) {
+#Weighted average SES
+waSES <- function(N) {
+  #work with copies as the formula is gonna adjust some data
   prevalencecopy = data$prevalence
   daycopy = data$day
+  
+  #Define prediction and sliding window sizes
   a = 2/(N+1)
   predictedvals = c(0) #put l0 to zero
-  nrofiters = 507 #predict 50 days into the future
+  nrofiters = length(data$prevalence)+50 #predict 50 days into the future
   
-  #Loop over all T's
-  for (val in 1:nrofiters){
-    allterms = 0
-    j = 0
+  #we need to predict every Y value from t=1 to t=507
+  for (T in 1:nrofiters){
     
-    #Sum from j=0 to T-1
-    for (i in 0:(val-1)){
-      term = a*((1-a)^j)*prevalencecopy[val-j]
-      allterms = allterms + term
-      j = j + 1
-    } 
+    #Sum from j=0 to j=T-1
+    j <- (0:(T-1)) 
+    allterms = sum(a*((1-a)^j)*prevalencecopy[T-j])
     predictedvals = append(predictedvals, allterms)
     
     #If there is no existing datapoint, add the prediction to the list
-    if (val >= length(data[2])){
+    if (T >= length(data[2])){
       prevalencecopy = append(prevalencecopy, allterms)
-      
     }
   }
   return(predictedvals)
 }
-waSESvals <- waSESprevalence(50)
 
-print(daycopy[length(daycopy)])
-
-#plot the SES wa form results
-#because we are predicting into the future, the date list should be updated as well
-daycopy <- data$day
-difference <- length(waSESvals)-length(daycopy)
-
-daycopy <- append(daycopy,daycopy[length(daycopy)]+1)
-plot(x=data$day,y=waSESvals,type='l',ylim=c(-0.025, 0.20), main="SES prevalence using weighted average form", xlab="date", ylab="prevalence")
+waSESvals <- waSES(50)
