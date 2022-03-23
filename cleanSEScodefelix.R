@@ -66,11 +66,11 @@ waSESprevalence <- function(a) {
 }
 
 #Use both methods and compare results
-waSESvals <- waSESprevalence(0.5)
-componentSESvals <- componentSES(0.5)
+waSESvals <- waSESprevalence(0.01)
+componentSESvals <- componentSES(0.01)
 
 #plot results
-plot(predictedvals,type='l',ylim=c(-0.025, 0.60), main="SES prevalence using component form", xlab="day", ylab="prevalence")
+plot(componentSESvals,type='l',ylim=c(-0.025, 0.60), main="SES prevalence using component form", xlab="day", ylab="prevalence")
 plot(waSESvals, ylim=c(-0.025, 0.60), type='l', main="SES prevalence using weighted average form", xlab="day", ylab="prevalence")
 
 #Function to determine optimal alpha from a list of alphas
@@ -94,6 +94,7 @@ determineAlpha <- function(alphas){
   print('lowest alpha:')
   print(lowestalpha)
  
+  return(lowestalpha)
 }
 
 determineAlpha(seq(0.01, 1, by=0.01))
