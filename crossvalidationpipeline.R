@@ -20,7 +20,7 @@ plot(data$day, data$daily_cases, ylim=c(-0.025, 50), type='l', main='Daily Preva
 componentSEStraining <- function(alpha) {
   #Set y0 = 0
   predictedvals = c(0)
-  for (i in 1:length(traindata$prevalence)){
+  for (i in 1:(length(traindata$prevalence)-1)){
     et = traindata$prevalence[i] - predictedvals[i-1]
     predictedval = predictedvals[i-1] + alpha*et
     predictedvals <- append(predictedvals, predictedval)
@@ -34,7 +34,7 @@ componentSEStraining <- function(alpha) {
 componentSEStesting <- function(alpha) {
   #Set y0 = 0
   predictedvals = c(0)
-  for (i in 1:length(testdata$prevalence)){
+  for (i in 1:(length(testdata$prevalence)-1)){
     et = testdata$prevalence[i] - predictedvals[i-1]
     predictedval = predictedvals[i-1] + alpha*et
     predictedvals <- append(predictedvals, predictedval)
@@ -62,80 +62,80 @@ determineAlpha <- function(alphas){
   
   print('lowest MSE:')
   print(lowestMSE)
-  print('lowest alpha:')
+  print('optimal alpha:')
   print(lowestalpha)
   
   return(lowestalpha)
 }
-
-#Create 10 folds
-folds <- cut(seq(1,nrow(data)),breaks=nroffolds,labels=FALSE)
-
-meanmse = 0
-nroffolds = 5
-
-for(i in 1:nroffolds){
-  #Assign folds to training and testing sets
-  testindexes <- which(folds==i,arr.ind=TRUE)
-  trainindexes <- which(folds>i, arr.ind = TRUE)
-  trainindexes <- append(trainindexes, which(folds<i, arr.ind = TRUE))
-  testdata <- data[testindexes, ]
-  traindata <- data[trainindexes, ]
-  
-  #perform model creation on training data
-  bestalpha = determineAlpha(seq(0.01, 1, by=0.01))
-  trainingpredictions = componentSEStraining(bestalpha)
-  
-  #Use ideal alpha to build model and perform on test set
-  testpredictions = componentSEStesting(bestalpha)
-  
-  #print error on test set 
-  mse = MSE(testpredictions, testdata$prevalence)
-  print('MSE on test set:')
-  print(mse)
-  meanmse = meanmse + mse
-}
-meanmse = meanmse/nroffolds
-print('mean MSE:')
-print(meanmse)
-
-crossvalidation <- function(nroffolds){
-  #Create 10 folds
-  folds <- cut(seq(1,nrow(data)),breaks=nroffolds,labels=FALSE)
-  
-  meanmse = 0
-  
-  for(i in 1:nroffolds){
-    #Assign folds to training and testing sets
-    testindexes <- which(folds==i,arr.ind=TRUE)
-    trainindexes <- which(folds>i, arr.ind = TRUE)
-    trainindexes <- append(trainindexes, which(folds<i, arr.ind = TRUE))
-    testdata <- data[testindexes, ]
-    traindata <- data[trainindexes, ]
-    
-    #perform model creation on training data
-    bestalpha = determineAlpha(seq(0.01, 1, by=0.01))
-    trainingpredictions = componentSEStraining(bestalpha)
-    plot(traindata$prevalence)
-    plot(trainingpredictions)
-    
-    #Use ideal alpha to build model and perform on test set
-    testpredictions = componentSEStesting(bestalpha)
-    
-    #print error on test set 
-    print('fold nr:')
-    print(i)
-    mse = MSE(testpredictions, testdata$prevalence)
-    print('MSE on test set:')
-    print(mse)
-    meanmse = meanmse + mse
-  }
-  meanmse = meanmse/nroffolds
-  print('total mean MSE:')
-  print(meanmse)
-}
-
-crossvalidation(2)
+# 
+# #Create 10 folds
+# folds <- cut(seq(1,nrow(data)),breaks=nroffolds,labels=FALSE)
+# 
+# meanmse = 0
+# nroffolds = 5
+# 
+# for(i in 1:nroffolds){
+#   #Assign folds to training and testing sets
+#   testindexes <- which(folds==i,arr.ind=TRUE)
+#   trainindexes <- which(folds>i, arr.ind = TRUE)
+#   trainindexes <- append(trainindexes, which(folds<i, arr.ind = TRUE))
+#   testdata <- data[testindexes, ]
+#   traindata <- data[trainindexes, ]
+#   
+#   #perform model creation on training data
+#   bestalpha = determineAlpha(seq(0.01, 1, by=0.01))
+#   trainingpredictions = componentSEStraining(bestalpha)
+#   
+#   #Use ideal alpha to build model and perform on test set
+#   testpredictions = componentSEStesting(bestalpha)
+#   
+#   #print error on test set 
+#   mse = MSE(testpredictions, testdata$prevalence)
+#   print('MSE on test set:')
+#   print(mse)
+#   meanmse = meanmse + mse
+# }
+# meanmse = meanmse/nroffolds
+# print('mean MSE:')
+# print(meanmse)
+# 
+# crossvalidation <- function(nroffolds){
+#   #Create 10 folds
+#   folds <- cut(seq(1,nrow(data)),breaks=nroffolds,labels=FALSE)
+#   
+#   meanmse = 0
+#   
+#   for(i in 1:nroffolds){
+#     #Assign folds to training and testing sets
+#     testindexes <- which(folds==i,arr.ind=TRUE)
+#     trainindexes <- which(folds>i, arr.ind = TRUE)
+#     trainindexes <- append(trainindexes, which(folds<i, arr.ind = TRUE))
+#     testdata <- data[testindexes, ]
+#     traindata <- data[trainindexes, ]
+#     
+#     #perform model creation on training data
+#     bestalpha = determineAlpha(seq(0.01, 1, by=0.01))
+#     trainingpredictions = componentSEStraining(bestalpha)
+#     plot(traindata$prevalence, ylim= c(-0.025, 0.6))
+#     plot(trainingpredictions, ylim= c(-0.025, 0.6))
+#     
+#     #Use ideal alpha to build model and perform on test set
+#     testpredictions = componentSEStesting(bestalpha)
+#     
+#     #print error on test set 
+#     print('fold nr:')
+#     print(i)
+#     mse = MSE(testpredictions, testdata$prevalence)
+#     print('MSE on test set:')
+#     print(mse)
+#     meanmse = meanmse + mse
+#   }
+#   meanmse = meanmse/nroffolds
+#   print('total mean MSE:')
+#   print(meanmse)
+# }
+# 
+# crossvalidation(2)
 #arimamodel <- auto.arima(data$prevalence, trace=TRUE)
 #arimamodel.summary()
 #predict(arimamodel,n.ahead=5)
@@ -150,6 +150,10 @@ crossvalidation(2)
 nroffolds = 10
 folds <- cut(seq(1,nrow(data)),breaks=nroffolds,labels=FALSE)
 
+validationalphas = c()
+validationmses = c()
+
+
 meanmse = 0
 
 for(i in 1:nroffolds){
@@ -160,23 +164,33 @@ for(i in 1:nroffolds){
   testdata <- data[testindexes, ]
   traindata <- data[trainindexes, ]
   
+  #print fold nr
+  print('fold nr:')
+  print(i)
+  
   #perform model creation on training data
   bestalpha = determineAlpha(seq(0.01, 1, by=0.01))
   trainingpredictions = componentSEStraining(bestalpha)
-  plot(traindata$prevalence)
-  plot(trainingpredictions)
+  plot(traindata$prevalence, ylim= c(-0.025, 0.6))
+  plot(trainingpredictions, ylim= c(-0.025, 0.6))
   
   #Use ideal alpha to build model and perform on test set
   testpredictions = componentSEStesting(bestalpha)
   
+  #plot(testdata$prevalence, ylim= c(-0.025, 0.6))
+  #plot(testpredictions, ylim= c(-0.025, 0.6))
+  
   #print error on test set 
-  print('fold nr:')
-  print(i)
   mse = MSE(testpredictions, testdata$prevalence)
   print('MSE on test set:')
   print(mse)
   meanmse = meanmse + mse
+  
+  validationalphas <- append(validationalphas, bestalpha)
+  validationmses <- append(validationmses, mse)
 }
 meanmse = meanmse/nroffolds
 print('total mean MSE:')
 print(meanmse)
+
+plot(validationalphas, validationmses)
