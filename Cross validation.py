@@ -9,6 +9,7 @@ import warnings
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 warnings.simplefilter('ignore', ConvergenceWarning)
 from statsmodels.tsa.ar_model import ar_select_order
+import statsmodels.api as sm
 
 class Crossvalidation:
     def __init__(self, rIVMLocation, cZELocation):
@@ -175,6 +176,32 @@ class Crossvalidation:
 
         return combinedpredictions
 
+    def getMarkovARIMApredictions(self, data, alpha):
+        model = sm.tsa.MarkovRegression(data, k_regimes=2)
+        results = model.fit(em_iter=10)
+    
+        regimes = results.smoothed_marginal_probabilities[1]
+        regimes = np.round(regimes)
+
+        lowmodel = ARIMA(data, order=alpha[0], enforce_stationarity=False)
+        highmodel = ARIMA(data, order=alpha[1], enforce_stationarity=False)
+
+        lowfit = lowmodel.fit()
+        highfit = highmodel.fit()
+
+        lowpreds = np.array(lowfit.fittedvalues)
+        highpreds = np.array(highfit.fittedvalues)
+
+        finalpreds = []
+
+        for i,nr in enumerate(regimes):
+            if nr == 0:
+                finalpreds.append(lowpreds[i])
+            if nr ==1:
+                finalpreds.append(highpreds[i])
+
+        return finalpreds
+
     def crossvalidate(self, nrOfFolds, smoothingparameter, model, modelparameters, showTrainingPredictions = False):
         #Create the "golden standard" values 
         testSetSmoothedPrevalence = self.datasmoother(data= self.testSet['prevalence'], days= smoothingparameter)
@@ -252,16 +279,17 @@ class Crossvalidation:
 
                     if model == 'Kalman':
                         predictions = self.getKalmanPredictions(data=self.trainingSet.iloc[:,i], alpha=alpha)
-                        mse = self.getMSE(trainingSetSmoothed.iloc[:,i], predictions)
 
                     if model == 'SETAR':
                         predictions = self.getSETARpredictions(data=self.trainingSet.iloc[:,i], alpha=alpha)
-                        mse = self.getMSE(trainingSetSmoothed.iloc[:,i], predictions)
 
                     if model == 'ARIMASES':
                         predictions = self.getARIMASESpredictions(data=self.trainingSet.iloc[:,i], alpha=alpha)
-                        mse = self.getMSE(trainingSetSmoothed.iloc[:,i], predictions)
 
+                    if model == 'MarkovARIMA':
+                        predictions = self.getMarkovARIMApredictions(data=self.trainingSet.iloc[:,i], alpha=alpha)
+
+                    mse = self.getMSE(trainingSetSmoothed.iloc[:,i], predictions)
                     if showTrainingPredictions == True:
                         plt.plot(predictions, label='predictions')
                         plt.plot(trainingSetSmoothed.iloc[:,i], label='Golden standard, smoothed over: {} days'.format(smoothingparameter*2+1))
@@ -298,20 +326,20 @@ class Crossvalidation:
 
                 if model == 'ARIMA':
                     predictions = self.getARIMApredictions(data=self.trainingSet.iloc[:,i], alpha=bestAlpha)
-                    mse = self.getMSE(predictions, trainingSetSmoothed.iloc[:,i])
 
                 if model == 'Kalman':
                     predictions = self.getKalmanPredictions(self.trainingSet.iloc[:,i], bestAlpha)
-                    mse = self.getMSE(predictions, trainingSetSmoothed.iloc[:,i])
 
                 if model == 'SETAR':
                     predictions = self.getSETARpredictions(self.trainingSet.iloc[:,i], bestAlpha)
-                    mse = self.getMSE(predictions, trainingSetSmoothed.iloc[:,i])
 
                 if model == 'ARIMASES':
                     predictions = self.getARIMASESpredictions(data=self.trainingSet.iloc[:,i], alpha=bestAlpha)
-                    mse = self.getMSE(predictions, trainingSetSmoothed.iloc[:,i])
+                    
+                if model == 'MarkovARIMA':
+                    predictions = self.getMarkovARIMApredictions(data=self.trainingSet.iloc[:,i], alpha=bestAlpha)
 
+                mse = self.getMSE(predictions, trainingSetSmoothed.iloc[:,i])
                 validationMSEs.append(mse)
                 validationParameters.append(bestAlpha)
                 validationSetMSEs += mse
@@ -344,24 +372,23 @@ class Crossvalidation:
 
         if model=='SES':
             testPredictions = self.getSESpredictions(self.testSet['prevalence'],finalAlpha)
-            testSetMSE = self.getMSE(testPredictions, testSetSmoothedPrevalence)
 
         if model=='ARIMA':
             testPredictions = self.getARIMApredictions(data=self.testSet['prevalence'], alpha=finalAlpha)
-            testSetMSE = self.getMSE(testPredictions, testSetSmoothedPrevalence)
 
         if model=='Kalman':
             testPredictions = self.getKalmanPredictions(data=self.testSet['prevalence'], alpha=finalAlpha)
-            testSetMSE = self.getMSE(testPredictions, testSetSmoothedPrevalence)
 
         if model=='SETAR':
             testPredictions = self.getSETARpredictions(data=self.testSet['prevalence'], alpha=finalAlpha)
-            testSetMSE = self.getMSE(testPredictions, testSetSmoothedPrevalence)
 
         if model=='ARIMASES':
             testPredictions = self.getARIMASESpredictions(data=self.testSet['prevalence'], alpha=finalAlpha)
-            testSetMSE = self.getMSE(testPredictions, testSetSmoothedPrevalence)
 
+        if model == 'MarkovARIMA':
+            testPredictions = self.getMarkovARIMApredictions(data=self.testSet['prevalence'], alpha=finalAlpha)
+
+        testSetMSE = self.getMSE(testPredictions, testSetSmoothedPrevalence)
         print('final alpha used:', finalAlpha)
         print('test set MSE:', testSetMSE)
 
@@ -409,6 +436,13 @@ for sesparam in sesparameters:
     for arimaparam in arimaparameters:
         modelparametersCombined.append([sesparam,arimaparam])
 
+#Markov-ARIMA parameters
+markovparameters = []
+
+for a in arimaparameters:
+    for b in arimaparameters:
+        markovparameters.append([a,b])
+
 exp1 = Crossvalidation(r'C:\Users\s166646\Downloads\Gemeentes.csv', r'C:\Users\s166646\Downloads\seh_data.csv')
 
 #exp1.crossvalidate(nrOfFolds=5, smoothingparameter=3, model='SES', modelparameters=[x/100 for x in range(1, 100, 1)])
@@ -418,11 +452,14 @@ exp1 = Crossvalidation(r'C:\Users\s166646\Downloads\Gemeentes.csv', r'C:\Users\s
 
 
 #exp1.crossvalidate(nrOfFolds=5, smoothingparameter=3, model='ARIMA', modelparameters=[(0, 0, 1) ,(0, 0, 2) ,(0, 0, 3)  ,(0, 1, 1) ,(0, 1, 2) ,(0, 1, 3) ,(0, 2, 1) ,(0, 2, 2) ,(0, 2, 3) ,(1, 0, 0) ,(1, 0, 1) ,(1, 0, 2) ,(1, 0, 3) ,(1, 1, 0) ,(1, 1, 1) ,(1, 1, 2) ,(1, 1, 3) ,(1, 2, 0) ,(1, 2, 1) ,(1, 2, 2) ,(1, 2, 3) ,(2, 0, 0) ,(2, 0, 1) ,(2, 0, 2) ,(2, 0, 3) ,(2, 1, 0) ,(2, 1, 1) ,(2, 1, 2) ,(2, 1, 3) ,(2, 2, 0) ,(2, 2, 1) ,(2, 2, 2) ,(2, 2, 3) ,(3, 0, 0) ,(3, 0, 1) ,(3, 0, 2) ,(3, 0, 3) ,(3, 1, 0) ,(3, 1, 1) ,(3, 1, 2) ,(3, 1, 3) ,(3, 2, 0) ,(3, 2, 1) ,(3, 2, 2) ,(3, 2, 3)])
-#exp1.crossvalidate(nrOfFolds=5, smoothingparameter=6, model='ARIMA', modelparameters=[(0, 0, 1) ,(0, 0, 2) ,(0, 0, 3)  ,(0, 1, 1) ,(0, 1, 2) ,(0, 1, 3) ,(0, 2, 1) ,(0, 2, 2) ,(0, 2, 3) ,(1, 0, 0) ,(1, 0, 1) ,(1, 0, 2) ,(1, 0, 3) ,(1, 1, 0) ,(1, 1, 1) ,(1, 1, 2) ,(1, 1, 3) ,(1, 2, 0) ,(1, 2, 1) ,(1, 2, 2) ,(1, 2, 3) ,(2, 0, 0) ,(2, 0, 1) ,(2, 0, 2) ,(2, 0, 3) ,(2, 1, 0) ,(2, 1, 1) ,(2, 1, 2) ,(2, 1, 3) ,(2, 2, 0) ,(2, 2, 1) ,(2, 2, 2) ,(2, 2, 3) ,(3, 0, 0) ,(3, 0, 1) ,(3, 0, 2) ,(3, 0, 3) ,(3, 1, 0) ,(3, 1, 1) ,(3, 1, 2) ,(3, 1, 3) ,(3, 2, 0) ,(3, 2, 1) ,(3, 2, 2) ,(3, 2, 3)])
+exp1.crossvalidate(nrOfFolds=5, smoothingparameter=6, model='ARIMA', modelparameters=[(0, 0, 1) ,(0, 0, 2) ,(0, 0, 3)  ,(0, 1, 1) ,(0, 1, 2) ,(0, 1, 3) ,(0, 2, 1) ,(0, 2, 2) ,(0, 2, 3) ,(1, 0, 0) ,(1, 0, 1) ,(1, 0, 2) ,(1, 0, 3) ,(1, 1, 0) ,(1, 1, 1) ,(1, 1, 2) ,(1, 1, 3) ,(1, 2, 0) ,(1, 2, 1) ,(1, 2, 2) ,(1, 2, 3) ,(2, 0, 0) ,(2, 0, 1) ,(2, 0, 2) ,(2, 0, 3) ,(2, 1, 0) ,(2, 1, 1) ,(2, 1, 2) ,(2, 1, 3) ,(2, 2, 0) ,(2, 2, 1) ,(2, 2, 2) ,(2, 2, 3) ,(3, 0, 0) ,(3, 0, 1) ,(3, 0, 2) ,(3, 0, 3) ,(3, 1, 0) ,(3, 1, 1) ,(3, 1, 2) ,(3, 1, 3) ,(3, 2, 0) ,(3, 2, 1) ,(3, 2, 2) ,(3, 2, 3)])
 
 #exp1.crossvalidate(nrOfFolds=5, smoothingparameter=3, model='Kalman', modelparameters=modelparametersKalman, showTrainingPredictions=False)
 #exp1.crossvalidate(nrOfFolds=5, smoothingparameter=6, model='Kalman', modelparameters=modelparametersKalman, showTrainingPredictions=False)
 
-#exp1.crossvalidate(nrOfFolds=5, smoothingparameter=3, model='SETAR', modelparameters=modelparametersSETAR, showTrainingPredictions=False)
+#exp1.crossvalidate(nrOfFolds=5, smoothingparameter=6, model='SETAR', modelparameters=modelparametersSETAR, showTrainingPredictions=False)
 
-exp1.crossvalidate(nrOfFolds=5, smoothingparameter=3, model='ARIMASES', modelparameters=arimaparameters, showTrainingPredictions=False)
+#exp1.crossvalidate(nrOfFolds=5, smoothingparameter=3, model='ARIMASES', modelparameters=arimaparameters, showTrainingPredictions=False)
+#exp1.crossvalidate(nrOfFolds=5, smoothingparameter=6, model='ARIMASES', modelparameters=arimaparameters, showTrainingPredictions=False)
+
+#exp1.crossvalidate(nrOfFolds=5, smoothingparameter=3, model='MarkovARIMA', modelparameters=markovparameters, showTrainingPredictions=True)
